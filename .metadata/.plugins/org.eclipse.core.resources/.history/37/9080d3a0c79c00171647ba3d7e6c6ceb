@@ -1,0 +1,126 @@
+import java.io.*;
+import java.util.Scanner;
+
+public class Manipulator {
+
+	public static void main(String[] args) {
+
+		Scanner userInput = new Scanner(System.in);
+		System.out.print("What file would you like to edit? ");
+		String fileName = userInput.nextLine();
+
+		File f = new File(fileName);
+		File fbmp = new File("newBMP.bmp");
+		//byte arrays to hold the values of each, then a variable for the int when converted
+		byte bArray[] = null;
+		byte bHeight[] = new byte[4];
+		int height = 0;
+		byte bWidth[] = new byte[4];
+		int width = 0;
+		byte bSize[] = new byte[4];
+		int size = 0;
+		byte bDataSize[] = new byte[4];
+		int dataSize = 0;
+		byte colorData [][] = null;
+
+
+
+		try {
+			FileInputStream fis = new FileInputStream(f);
+			//skips data in the header that isn't needed and fills the arrays with corresponding information
+			fis.skip(2);
+			fis.read(bSize);
+			fis.skip(12);
+			fis.read(bWidth);
+			fis.read(bHeight);
+			fis.skip(8);
+			fis.read(bDataSize);
+			fis.skip(16);
+
+			//converts the arrays to int's
+			size = byteArrayToInt(bSize);
+			width = byteArrayToInt(bWidth);
+			height = byteArrayToInt(bHeight);
+			dataSize = byteArrayToInt(bDataSize);
+			
+			System.out.println("Take in size: "+size);
+
+			//creates the array based on width and height, width is * 3 because of the 3 RGB numbers
+			colorData = new byte[height][width * 3];
+
+			//fills each row with as much data as will fit
+			for (int i = 0; i < height; i++)
+				fis.read(colorData[i]);
+
+			fis.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		try{
+			FileOutputStream newBMP = new FileOutputStream(fbmp);
+			
+			int outputSize = 54+(height*(width*3))+2;
+			int colorSize1 = height*(width*3);
+			
+			newBMP.write(intToByteArray(66)); //B
+			newBMP.write(intToByteArray(0));
+			newBMP.write(intToByteArray(77)); //M
+			newBMP.write(intToByteArray(0));
+			newBMP.write(intToByteArray(outputSize)); //numbers that it said to use in project 1   ***Not showing correct values should be 324,856
+			newBMP.write(intToByteArray(0)); //reserved 0
+			newBMP.write(intToByteArray(54)); //always 54 to offset start of data
+			newBMP.write(intToByteArray(40)); //header size always 40
+			newBMP.write(bWidth); //width pixels
+			newBMP.write(bHeight); //height pixels
+			newBMP.write(intToByteArray(1)); //planes in image, always 1
+			newBMP.write(intToByteArray(0)); 
+			newBMP.write(intToByteArray(24)); //color depth, 24bit
+			newBMP.write(intToByteArray(0));
+			newBMP.write(intToByteArray(0));
+			newBMP.write(intToByteArray(colorSize1)); //numbers it said to use in project 1  **size of color in bytes
+			newBMP.write(intToByteArray(72)); //always 72
+			newBMP.write(intToByteArray(72)); //always 72
+			newBMP.write(intToByteArray(0)); //colors in palate, use 0 when writing
+			newBMP.write(intToByteArray(0)); //important colors, use 0 when writing
+
+			for(int i = 0; i < height; i++)     //fills in the rest with color data
+				newBMP.write(colorData[i]);
+
+
+			/*For some reason, after it gets to this point there is still exactly 800 bytes worth of color data not copied over
+              From reading through the project notes, it seems like there might be padding needed at the end for at least the amy.bmp picture
+              Even though it says it doesn't need any.  Take a look at it and see if you can figure it out and I'll keep trying as well.
+              When I try to do it on jonah.bmp, the amount of data is correct, but it says the file cannot be opened, it could be something wrong
+              with the header information so maybe you can look through it and if you can't find anything then take it to either wittman or the TAs
+			 */
+
+			System.out.println(outputSize + " " + colorSize1);
+
+			newBMP.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+
+
+
+	}
+
+	//converts int to byte array
+	public static byte[] intToByteArray(int num){
+		byte[] array = new byte[4];
+		array[0] = (byte) (num & 0xFF);  
+		array[1] = (byte) ((num >> 8) & 0xFF);  
+		array[2] = (byte) ((num >> 16) & 0xFF);  
+		array[3] = (byte) ((num >> 24) & 0xFF);
+		return array;
+	}
+
+	//converts byte array to int
+	public static int byteArrayToInt(byte[] array){
+		int num = 0;
+		for (int i = 3; i >= 0; i--)
+			num = (num << 8) + (array[i] & 0xFF);
+		return num;
+	}
+}

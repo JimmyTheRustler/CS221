@@ -1,0 +1,153 @@
+import java.io.File;
+import java.util.Scanner;
+
+public class Graph {
+	private int[][] graph;
+	
+	public Graph(int size){
+		graph = new int[size][size];
+	}
+	
+	public void addNum2(int i, int j, int num){
+		graph[i][j] = num;
+		graph[j][i] = num;
+	}
+	
+	public int get(int i, int j){
+		return graph[i][j];
+	}
+	
+	public static void makeMatrix(Scanner in, Graph graphConn, Graph grapWeight){
+		int node = 0;
+		int conn, weight;
+		String line = in.nextLine();//reads in the size of the array
+		line = in.nextLine();//skips to the first line of array data
+		Scanner scanner = new Scanner(line);
+		while(in.hasNextLine()){
+			if(node != 0)
+				line = in.nextLine();//takes the next line of data
+			scanner = new Scanner(line);
+			conn = scanner.nextInt();//total number of connections
+
+			while(scanner.hasNext()){
+				conn = scanner.nextInt();//node that it is connected to
+				graphConn.addNum2(conn, node, 1);//adds a 1 if where two nodes are connected to both places in the matrix
+				weight = scanner.nextInt();//weight of connection
+				grapWeight.addNum2(conn, node, weight);//adds the weight of the connection between two nodes
+			}
+			node++;
+		}
+	}
+	public static void MST(Graph graphConn, Graph graphWeight, int size){//implement Prim's Algorithm
+		if(!isConnected(graphWeight)){
+			System.out.println("Error: Graph is not connected.");
+			return;
+		}
+		int[][] mst = new int[size + 1][1];
+		mst[0][0] = size;
+		int[] setS = new int[size];
+		int[] setV = new int[size - 1];
+		for(int i = 0; i < setS.length; i++)//fills setS with invalid node numbers for the loop structures lower down
+			setS[i] = -1;
+		setS[0] = 0;//put starting node into setS
+		for(int i = 1; i < size; i++)//fills setV with remaining nodes
+			setV[i - 1] = i;
+		int countNodes = setV.length;//number of nodes remaining in setV
+		int sIndex = 1, closest, nearNode = 0, weight = 0, nodeComp = 0;//closest is the smallest weight found, nearNode is the closest node to the current node(setV), weight is the next weight being compared to closest, nodeComp is node in setS
+		while(countNodes > 0){
+			int k = 0;
+			closest = 0;
+			while(setS[k] != -1){//only runs while there is a node in setS to be looked at
+				int node = setS[k];//current node
+				for(int j = 0; j < size; j++){//looks for closest node
+					if(!inArray(setS, j)){//ensures that node has not already been checked
+						weight = graphWeight.get(node, j);//current weight being compared
+						if(closest == 0){//skip if weight == 0
+							closest = weight;
+							nearNode = j;
+							nodeComp = node;
+						}
+						else if(weight != 0 && weight < closest && !inArray(setS, j)){//ensures a valid weight is obtained and that the node is not already in setS
+							closest = weight;
+							nearNode = j;
+							nodeComp = node;
+						}
+					}
+				}
+				k++;
+			}
+			mst = addConn(mst, nodeComp, nearNode, closest);//adds the connection with weight to the mst array
+			mst = addConn(mst, nearNode, nodeComp, closest);//add the connection to the other node for the mst array
+			setS[sIndex] = nearNode;//adds the node to setS
+			sIndex++;
+			for(int i = 0; i < setV.length; i++)//removes node from setV
+				if(setV[i] == nearNode){//FIX limit times it loops
+					setV[i] = -1;
+					break;
+				}
+			countNodes--;
+		}
+		for(int i = 1; i < mst.length; i++){
+			mst[i][0] = (mst[i].length - 1) / 2;
+		}
+		for(int i = 0; i < mst.length; i++){
+			for(int j = 0; j < mst[i].length; j++)
+				System.out.print(mst[i][j] + " ");
+			System.out.println();
+		}
+	}
+	
+	public static int[][] addConn(int[][] array, int nodeComp, int nearNode, int closest){
+		int weightIndex = 2;
+		array = resizeLine(array, nodeComp + 1);
+		while(array[nodeComp + 1][weightIndex] != 0)//finds next available slot for connection insertion
+			weightIndex += 2;
+		array[nodeComp + 1][weightIndex - 1] = nearNode;//puts closets node in setV into mst array
+		array[nodeComp + 1][weightIndex] = closest;//adds corresponding weight
+		return array;
+	}
+	
+	private static int[][] resizeLine(int[][] array, int row) {
+		int[][] temp = new int[array.length][];
+		for(int i = 0; i < temp.length; i++){
+			if(i != row)
+				temp[i] = new int[array[i].length];
+			else
+				temp[i] = new int[array[i].length + 2];
+		}
+		for(int rows = 0; rows < array.length; rows++)
+			for(int cols = 0; cols < array[rows].length; cols++)
+				temp[rows][cols] = array[rows][cols];		
+		return temp;
+	}
+
+	private static boolean inArray(int[] array, int j) {//ensures that a number is not in the array
+		for(int i = 0; i < array.length; i++)
+			if(array[i] == j)
+				return true;
+		return false;
+	}
+	
+	public static void isMetric(Graph graph){
+		int size = graph.get(0,0);
+		for(int i = 1; i < size; i++){
+			if(graph.get(i, 0) != (size - 1)){
+				System.out.println("Graph is not metric:  Graph is not completely connected.");
+				return;
+			}
+		}
+		int startNode = 0, direct = 0, indirect = 0, endNode = 0, rowIndex = 1;//startNode is the node we start on, direct is the direct weight, indirect is indirect weight, endNode is node that we end on, rowIndex is the index of startNode
+		while(startNode < size){
+			for(int row = 1; row < size; row++){//these two loops go through every node to check triangle inequality from that node to all other nodes
+				for(int col = 1; col < (size - 1) * 2; col += 2){
+					endNode = graph.get(row, col);//node to which we are checking the triangle inequality
+					direct = graph.get(row, col + 1);//weight directly to that node
+				}
+			}
+		}
+	}
+
+	public static boolean isConnected(Graph graphConn) {//Jimmy is making, just here so I don't get an error message
+		return true;
+	}
+}

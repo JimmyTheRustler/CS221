@@ -1,0 +1,56 @@
+package assignment7;
+import java.util.Random;
+
+public class Sorting {
+	public static void main(String[] args) {
+		//TODO make for loop that loops 10,000; 100,000; and 1,000,000 elements. Time as well.
+		int max = 10_000;
+		int[] randArray = new int[max];
+		Random rand = new Random();
+		double time;
+		
+		
+		//Generates array of rand nums between 1 - max
+		for(int i = 0; i < randArray.length; i++) {
+			randArray[i] = rand.nextInt(max) + 1;
+		}
+		
+		
+		//radix testing
+		time = System.currentTimeMillis();
+		radixSort(randArray, 6);
+		time = System.currentTimeMillis() - time;
+		System.out.println(time / 1000000000.0);
+
+	}
+	public static void quickSort(int[] array, int start, int end) { }
+	public static void mergeSort(int[] array, int start, int end) { }
+	public static void heapSort(int[] array) { }
+	
+	public static void radixSort(int[] array, int digits) {
+		
+		int m = array[0];
+		int bucketPower = 1;
+		int arrayLength = array.length;
+        int[] b = new int[10];
+        
+        for (int i = 1; i < arrayLength; i++)
+            if (array[i] > m)
+                m = array[i];
+        
+        while (m / bucketPower > 0)
+        {
+            int[] bucket = new int[10];
+ 
+            for (int i = 0; i < arrayLength-1; i++)
+                bucket[(array[i] / bucketPower) % 10]++;
+            for (int i = 1; i < 10; i++)
+                bucket[i] += bucket[i - 1];
+            for (int i = arrayLength - 1; i >= 0; i--)
+                b[--bucket[(array[i] / bucketPower) % 10]] = array[i];
+            for (int i = 0; i < arrayLength; i++)
+                array[i] = b[i];
+            bucketPower *= 10;        
+        }
+	}
+}

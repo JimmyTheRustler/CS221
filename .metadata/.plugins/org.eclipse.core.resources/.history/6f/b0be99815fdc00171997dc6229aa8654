@@ -1,0 +1,695 @@
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Scanner;
+import java.util.Stack;
+
+public class Graph {
+	private int[][] graph;
+	private static int[][] tours;
+	private static int tourIndex;
+
+	/**
+	 * creates a graph
+	 * @param size
+	 */
+	public Graph(int size){
+		graph = new int[size][size];
+	}
+
+	/**
+	 * takes a number and inserts into the indicated position and the position opposite to it with respect to the diagonal
+	 * @param i
+	 * @param j
+	 * @param num
+	 */
+	public void addNum2(int i, int j, int num){
+		graph[i][j] = num;
+		graph[j][i] = num;
+	}
+
+	/**
+	 * prints out a given graph
+	 * @param userGraph
+	 * @param size
+	 */
+	public static void printConnGraph(Graph userGraph, int size){//send weighted graph
+		System.out.println(size);
+		for(int i = 0; i < size; i++){
+			System.out.print(size - 1 + " ");
+			for(int j = 0; j < size; j++){
+				System.out.print(j + " " + userGraph.graph[i][j] + " ");
+			}
+			System.out.println();
+		}
+	}
+
+	/**
+	 * takes in a file and reads the weight for each connection and puts it into the corresponding position in a 2D array
+	 * @param in
+	 * @param grapWeight
+	 */
+	public static void makeMatrix(Scanner in, Graph grapWeight){
+		int node = 0;
+		int conn, weight;
+		String line = in.nextLine();//reads in the size of the array
+		line = in.nextLine();//skips to the first line of array data
+		Scanner scanner = new Scanner(line);
+		while(in.hasNextLine()){
+			if(node != 0)
+				line = in.nextLine();//takes the next line of data
+			scanner = new Scanner(line);
+			conn = scanner.nextInt();//total number of connections
+
+			while(scanner.hasNext()){
+				conn = scanner.nextInt();//reads into to skip the node that it is connected to
+				weight = scanner.nextInt();//weight of connection
+				grapWeight.addNum2(conn, node, weight);//adds the weight of the connection between two nodes
+			}
+			node++;
+		}
+	}
+
+	/**
+	 * finds the Minimum Spanning Tree for a provided graph 
+	 * @param graphWeight
+	 * @param size
+	 */
+	public static int[][] MST(Graph graphWeight){//implement Prim's Algorithm
+		int size = graphWeight.graph.length;
+		int[][] mst = new int[size + 1][1];//creates a 2d dynamic array to store the node connection and weught
+		mst[0][0] = size;
+		if(!isConnected(graphWeight)){//needs to be full connected?
+			System.out.println("Error: Graph is not connected.");
+			mst[0][0] = -1;//indicates an error
+			return mst;
+		}
+
+		int[] setS = new int[size];
+		int[] setV = new int[size - 1];
+		for(int i = 0; i < setS.length; i++)//fills setS with invalid node numbers for the loop structures lower down
+			setS[i] = -1;
+		setS[0] = 0;//put starting node into setS
+		for(int i = 1; i < size; i++)//fills setV with remaining nodes
+			setV[i - 1] = i;
+		int countNodes = setV.length;//number of nodes remaining in setV
+		int sIndex = 1, closest, nearNode = 0, weight = 0, nodeComp = 0;//closest is the smallest weight found, nearNode is the closest node to the current node(setV), weight is the next weight being compared to closest, nodeComp is node in setS
+		while(countNodes > 0){
+			int k = 0;
+			closest = 0;
+			while(setS[k] != -1){//only runs while there is a node in setS to be looked at
+				int node = setS[k];//current node
+				for(int j = 0; j < size; j++){//looks for closest node
+					if(!inArray(setS, j)){//ensures that node has not already been checked
+						weight = graphWeight.graph[node][j];//current weight being compared
+						if(closest == 0){//skip if weight == 0
+							closest = weight;
+							nearNode = j;
+							nodeComp = node;
+						}
+						else if(weight != 0 && weight < closest && !inArray(setS, j)){//ensures a valid weight is obtained and that the node is not already in setS
+							closest = weight;
+							nearNode = j;
+							nodeComp = node;
+						}
+					}
+				}
+				k++;
+			}
+			mst = addConn(mst, nodeComp, nearNode, closest);//adds the connection with weight to the mst array
+			mst = addConn(mst, nearNode, nodeComp, closest);//add the connection to the other node for the mst array
+			setS[sIndex] = nearNode;//adds the node to setS
+			sIndex++;
+			for(int i = 0; i < setV.length; i++)//removes node from setV
+				if(setV[i] == nearNode){//limit times it loops
+					setV[i] = -1;
+					break;
+				}
+			countNodes--;
+		}
+		for(int i = 1; i < mst.length; i++){
+			mst[i][0] = (mst[i].length - 1) / 2;
+		}
+		return mst;
+	}
+
+	/**
+	 * adds the weight and the corresponding node number into the 2D array
+	 * @param array
+	 * @param nodeComp
+	 * @param nearNode
+	 * @param closest
+	 * @return
+	 */
+	public static int[][] addConn(int[][] array, int nodeComp, int nearNode, int closest){
+		int weightIndex = 2;
+		array = resizeLine(array, nodeComp + 1);
+		while(array[nodeComp + 1][weightIndex] != 0)//finds next available slot for connection insertion
+			weightIndex += 2;
+		array[nodeComp + 1][weightIndex - 1] = nearNode;//puts closets node in setV into mst array
+		array[nodeComp + 1][weightIndex] = closest;//adds corresponding weight
+		return array;
+	}
+
+	/**
+	 * resizes a line in a 2d array
+	 * @param array
+	 * @param row
+	 * @return
+	 */
+	private static int[][] resizeLine(int[][] array, int row) {
+		int[][] temp = new int[array.length][];
+		for(int i = 0; i < temp.length; i++){
+			if(i != row)
+				temp[i] = new int[array[i].length];
+			else
+				temp[i] = new int[array[i].length + 2];//adds 2 to the length of the array to allow for the node number and the weight between the two nodes
+		}
+		for(int rows = 0; rows < array.length; rows++)//copies over the rest of the original array into the new one
+			for(int cols = 0; cols < array[rows].length; cols++)
+				temp[rows][cols] = array[rows][cols];		
+		return temp;
+	}
+
+	/**
+	 * looks to see if the provided number is in the given array
+	 * @param array
+	 * @param j
+	 * @return
+	 */
+	private static boolean inArray(int[] array, int j) {
+		for(int i = 0; i < array.length; i++)//iterates through the array looking for the given number
+			if(array[i] == j)//returns true if the number is in the array
+				return true;
+		return false;
+	}
+
+	/**
+	 * checks to see if the graph is a metric graph
+	 * @param userGraph
+	 * @param size
+	 */
+	public static boolean isMetric(Graph userGraph){//pass weighted graph
+		int size = userGraph.graph.length;
+		for(int i = 0; i < size; i++){//ensures that the only weight zero is when a node refers to  the weight from itself to itself
+			for(int j = 0; j < size; j++){
+				if(j != i && userGraph.graph[i][j] == 0){
+					System.out.println("Graph is not metric:  Graph is not completely connected.");
+					return false;
+				}
+			}
+		}
+		int startNode = 0, direct = 0, indirect = 0, inCol;//startNode is the node we start on, direct is the direct weight, indirect is indirect weight, inCol is the index for the indirect distance
+		while(startNode < size){
+			for(int row = 0; row < size; row++){//these two loops go through every node to check triangle inequality from that node to all other nodes
+				for(int col = 0; col < size; col++){
+					if(row == col)//skips where diagonal of the matrix since that is the distance from the node to itself
+						col++;
+					if(col == size)
+						break;
+					inCol = col + 1;
+					if(col == size - 1)//prevents inCol from running out of bounds
+						inCol = 0;
+					direct = userGraph.graph[row][col];//weight directly to that node
+					int count = 0;
+					while(count < size){//loops through the possible middle nodes
+						if(inCol >= size)//keeps inCol with the bounds of the array
+							inCol = 0;
+						if(inCol == startNode && startNode != 0)
+							inCol = 0;
+						else if(inCol == startNode && startNode == 0 || inCol == col){
+							inCol++;
+							if(inCol >= size)
+								inCol = 1;
+						}
+						indirect = userGraph.graph[row][inCol];//gets the first part of the indirect distance
+						indirect += userGraph.graph[inCol][col];//gets the second part of the indirect distance
+						if(indirect < direct){//gets the triangle inequality condition
+							System.out.println("Graph is not metric: It does not obey the triangle inequality.");
+							return false;
+						}
+						inCol++;
+						count++;
+					}
+				}
+			}
+			startNode++;
+		}
+		System.out.println("Graph is metric");
+		return true;
+	}
+
+	/**@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+	 * does not work currently
+	 * @param userGraph
+	 */
+	public static void makeMetric(Graph userGraph){//use part for isMetric and convert to method
+		if(!isConnected(userGraph)){
+			//make connected
+			//possibly fill with -1 where a weight should be but currently isn't
+		}
+		int size = userGraph.graph.length;
+		int part1, part2;
+		int startNode = 0, direct = 0, indirect = 0, inCol;//startNode is the node we start on, direct is the direct weight, indirect is indirect weight, inCol is the index for the indirect distance
+		while(startNode < size){
+			for(int row = 0; row < size; row++){//these two loops go through every node to check triangle inequality from that node to all other nodes
+				for(int col = 0; col < size; col++){
+					if(row == col)//skips where diagonal of the matrix since that is the distance from the node to itself
+						col++;
+					if(col == size)
+						break;
+					inCol = col + 1;
+					if(col == size - 1)//prevents inCol from running out of bounds
+						inCol = 0;
+					direct = userGraph.graph[row][col];//weight directly to that node
+					int count = 0;
+					while(count < size){//loops through the possible middle nodes
+						boolean zeroWeight = false;
+						if(inCol >= size)//keeps inCol with the bounds of the array
+							inCol = 0;
+						if(inCol == startNode && startNode != 0)
+							inCol = 0;
+						else if(inCol == startNode && startNode == 0 || inCol == col){
+							inCol++;
+							if(inCol >= size)
+								inCol = 1;
+						}
+						part1 = userGraph.graph[row][inCol];//gets the first part of the indirect distance
+						part2 = userGraph.graph[inCol][col];//gets the second part of the indirect distance
+						if(part1 == 0 || part2 == 0)
+							zeroWeight = true;
+						indirect = part1 + part2;
+						if(indirect < direct && !zeroWeight){//gets the triangle inequality condition
+							//update weight
+							userGraph.addNum2(row, col, indirect);
+						}
+						//what to do if the one weight is zero
+						inCol++;
+						count++;
+					}
+				}
+			}
+			startNode++;
+		}
+		printConnGraph(userGraph, size);
+	}
+
+	/**
+	 * For the traveling salesman problem, initializes the arrays and indexes
+	 * @param graph
+	 * @param size
+	 */
+	public static void tsp(Graph userGraph){
+		int size = userGraph.graph.length;
+		if(!isConnected(userGraph)){//ensures that the graph is connected
+			System.out.println("Error: Graph is not connected.");
+			return;
+		}
+		tourIndex = 0;//sets the index to 0
+		int[] path = new int[size];//sets up an array to track the current path
+		tours = new int[size][size + 1];//will be used to track all the tours that are found
+		for (int i = 1; i < size; i++)//fills the path array with invalid node values to prevent crashing
+			path[i] = -1;
+		int count = 0;//how many paths have been found
+		while(count < factorial(size)){//reiterate and fill tours array
+			count++;
+			if (!tour(userGraph, path, 1, size) &&  count == 0){//cycle(graph, path, 1, size) == false
+				System.out.println("Error: Graph has no tour.");
+				return;
+			}
+		}
+		printTour();
+		//clear tours and tourIndex at the end
+	}
+
+	/**
+	 * finds the factorial of a given number
+	 * @param num
+	 * @return
+	 */
+	public static int factorial(int num){
+		if(num == 0)
+			return 0;
+		else if(num == 1)
+			return 1;
+		else
+			return num * factorial(num - 1);
+	}
+
+	/**
+	 * stores the tour into the tours array, resizing the array if necessary
+	 * @param path
+	 * @param userGraph
+	 */
+	public static void storePath(int[] path, Graph userGraph){
+		if(tourIndex == tours.length - 1){//resizes the tours array if necessary
+			int[][] temp = new int[tours.length * 2][tours[0].length];
+			for(int i = 0; i < tours.length; i++){
+				for(int j = 0; j < tours[0].length; j++)
+					temp[i][j] = tours[i][j];
+			}
+			tours = temp;
+		}
+		for(int j = 0; j < path.length; j++)//stores path into tours
+			tours[tourIndex][j] = path[j];
+		int total = 0;//calculates the weight of the path that was found
+		for(int i = 1; i < path.length; i++)
+			total += userGraph.graph[path[i - 1]][path[i]];
+		total += userGraph.graph[path[path.length - 1]][0];
+		tours[tourIndex][tours[0].length - 1] = total;//stores the weight of the path into tours
+		tourIndex++;
+	}
+
+	/**
+	 * looks for a tour of the graph
+	 * @param userGraph
+	 * @param path
+	 * @param pos
+	 * @param size
+	 * @return
+	 */
+	public static boolean tour(Graph userGraph, int path[], int pos, int size){
+		if (pos == size){//if there is an edge from the last included
+			if (userGraph.graph[path[pos - 1]][path[0]] != 0){//check if the path has already been found, if it has backtrack
+				for(int i = 0; i <= tourIndex; i++){//ensures that the path has not already been found
+					for(int j = 0; j < path.length; j++){
+						if(tours[i][j] != path[j]){//if one node is in a different order, means that the path has not been found		
+							storePath(path, userGraph);//store path into tours
+							if(tourIndex == factorial(size))
+								return true;
+							return false;
+						}
+					}
+				}
+				tourIndex++;
+				return false;
+			}
+			else
+				return false;
+		}
+		for (int node = 1; node < size; node++){//check if this vertex can be added to tour
+			if (isSafe(node, userGraph, path, pos)){
+				path[pos] = node;//recur to construct rest of the path
+				if (tour(userGraph, path, pos + 1, size) == true)
+					return true;
+				path[pos] = -1;//if adding vertex v doesn't lead to a solution, then remove it
+			}
+		}
+		return false;//if no vertex can be added to tour constructed so far
+	}
+
+	/**
+	 * finds and prints the shortest tour that was found
+	 */
+	public static void printTour(){
+		System.out.println("The shortest tour that was found is as follows.");
+		int total = tours[0][tours[0].length - 1], minPath = 0;
+		for(int i = 0; i <= tourIndex; i++){//goes through the last column as that is the weight of each respective path
+			int weight = tours[i][tours[0].length - 1];
+			if(weight < total && weight != 0){
+				total = weight;
+				minPath = i;//tracks were the shortest path is in the array
+			}
+		}
+		System.out.print(total + ": ");
+		for (int i = 0; i < tours[0].length - 1; i++)//prints out the shortest path
+			System.out.print(tours[minPath][i] + " -> ");
+		System.out.println(" " + tours[minPath][0] + " ");
+	}
+
+	/**
+	 * check to see if the node has already been added to the tour or not
+	 * @param node
+	 * @param userGraph
+	 * @param path
+	 * @param pos
+	 * @return
+	 */
+	public static boolean isSafe(int node, Graph userGraph, int path[], int pos){
+		if (userGraph.graph[path[pos - 1]][node] == 0)//check if the vertex is an adjacent vertex of the previously added vertex
+			return false;
+		for (int i = 0; i < pos; i++)//check if the vertex has already been included
+			if (path[i] == node)
+				return false;	 
+		return true;
+	}
+	/**
+	 * checks to see if user graph is connected. returns true or false
+	 * @param graphWeight
+	 * @return
+	 */
+	public static boolean isConnected(Graph graphWeight) {//DFS on graph to check connectivity
+		int size = graphWeight.graph.length;
+		boolean[] visited = new boolean[size];
+		int j = 0;
+		dfs(visited, graphWeight, j);
+		for(int k = 0; k < visited.length; k++){ //checks the visited array for a false connection
+			if(visited[k] != true){
+				System.out.println("Graph is not Connected.");
+				return false;
+			}
+		}
+		return true;
+	}
+	/**
+	 * DFS is a helper method that performs a depth first search for isConnected
+	 * @param visit
+	 * @param userGraph
+	 * @param j
+	 */
+	private static void dfs(boolean[] visit, Graph userGraph, int j){
+		if(j >= userGraph.graph.length - 1)
+			return;
+
+		for(int i = 0; i < userGraph.graph.length; i++){ 
+			if(j == 0){//limit looping
+				if(visit[0] == false){
+					for(int m = 0; m < userGraph.graph.length; m++)//ensures that node 0 is connected to something
+						if(userGraph.graph[0][m] != 0)
+							visit[0] = true;
+				}
+			}
+			if(userGraph.graph[j][i] != 0 && visit[i] == false && checkConnection(visit, userGraph, i)){//visit[j] == true
+				visit[i] = true;
+				dfs(visit, userGraph, i);//j++
+			}
+		}
+	}
+	/**
+	 * helper method to check connections between nodes for DFS helper method.
+	 * @param visit
+	 * @param userGraph
+	 * @param num
+	 * @return
+	 */
+	private static boolean checkConnection(boolean[] visit, Graph userGraph, int num){
+		for(int i = 0; i < userGraph.graph.length; i++){
+			if(visit[i] == true && userGraph.graph[num][i] != 0)
+				return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * finds the shortest path of a provided graph
+	 * @param start
+	 * @param userGraph
+	 */
+	public static void shortestPath(int start, Graph userGraph){
+		if(!isConnected(userGraph))
+			return;
+		int size = userGraph.graph.length;
+		ArrayList <Integer> setV = new ArrayList<Integer>();
+		int[] dist = new int[size];
+		int[] pred = new int[size];
+
+		for(int i = 0; i < size; i++){
+			setV.add(i);
+			dist[i]  = Integer.MAX_VALUE;
+			pred[i] = -1;
+		}
+
+		dist[start] = 0;//sets distance to starting node to 0		
+		while(!setV.isEmpty()){
+			int index = setV.indexOf(start);
+			setV.remove(index);//removes start from setV
+
+			int[] neighbor = findNeighbors(userGraph, start, setV);
+			int[] weights = getWeights(userGraph, neighbor, start, setV);
+
+			for(int i = 0; i < neighbor.length; i++){//updates the weights and predecessors
+				int node = neighbor[i];
+				if(weights[i] + dist[start] < dist[node]){
+					dist[node] = weights[i] + dist[start];
+					pred[node] = start;
+				}
+			}
+			int min = Integer.MAX_VALUE;
+			int shortest = 0;
+			for(int i = 0; i < dist.length; i++)//finds closest node in dist
+				if(dist[i] != 0 && dist[i] < min && setV.contains(i)){//?
+					min = dist[i];
+					shortest = i;
+				}
+			start = shortest;
+		}
+		printShortPath(dist, pred);
+	}
+
+	/**
+	 * prints the shortest path of a graph
+	 * @param dist
+	 * @param pred
+	 */
+	private static void printShortPath(int[] dist, int[] pred) {
+		int size = dist.length;
+
+		ArrayList <Integer> path = new ArrayList<Integer>();//stores the path from the origin node to the current node
+		int origin = 0;
+		for(int j = 0; j < size; j++)//finds which node was chosen as the origin node
+			if(pred[j] == -1)
+				origin = j;
+		for(int i = 0; i < size; i++){
+			int total = dist[i];//pulls distance to current node
+			int prev = pred[i];//finds the prev node in series
+			System.out.printf(i + ": (" + total + ")");
+			while(prev != -1 && prev != origin){//find the path taken to that node
+				path.add(prev);
+				prev = pred[prev];
+			}
+			if(i != origin){
+				//System.out.print(total + ") ");
+				System.out.printf("%2s",origin);
+				//System.out.print(total + ") " + origin);
+				int k = path.size() - 1;
+				while(!path.isEmpty()){
+					System.out.print(" -> " + path.remove(k--));
+				}
+				System.out.print(" -> " + i);
+			}
+			else//prevents arrows from being printed out at the origin node
+				System.out.printf("%2s",origin);
+			System.out.println();	
+		}
+	}
+
+	/**
+	 * gets the weights for an array of nodes and stores them into an array
+	 * @param userGraph
+	 * @param neighbor
+	 * @param num
+	 * @param setV
+	 * @return
+	 */
+	public static int[] getWeights(Graph userGraph, int[] neighbor, int num, ArrayList setV){
+		int[] weights =new int[countNeigh(userGraph, num, setV)];
+		for(int i = 0; i < neighbor.length; i++){
+			int col = neighbor[i];
+			int weight = userGraph.graph[num][col];
+			weights[i] = weight;
+		}
+		return weights;
+	}
+
+	/**
+	 * finds all the neighbors of a node and stores them into an array in numerical order
+	 * @param userGraph
+	 * @param num
+	 * @param setV
+	 * @return
+	 */
+	public static int[] findNeighbors(Graph userGraph, int num, ArrayList setV){
+		int[] temp = new int[countNeigh(userGraph, num, setV)];
+		int index = 0;
+		for(int i = 0; i < userGraph.graph.length; i++)
+			if(userGraph.graph[num][i] != 0 && setV.contains(i))
+				temp[index++] = i;
+
+		return temp;
+	}
+
+	/**
+	 * counts how many neighbors that a node has that are still to be checked
+	 * @param userGraph
+	 * @param num
+	 * @param setV
+	 * @return
+	 */
+	public static int countNeigh(Graph userGraph, int num, ArrayList setV){
+		int count = 0;
+		for(int i = 0; i < userGraph.graph.length; i++)
+			if(userGraph.graph[num][i] > 0 && setV.contains(i))
+				count++;
+		return count;
+	}
+	/**
+	 * calculates the pre-order walk for approximate TSP
+	 * @param array
+	 * @return
+	 */
+	public static ArrayList preorderWalk(int[][] array){
+		int size = array.length;
+		ArrayList <Integer> path = new ArrayList <Integer>();//will store the pre-order walk
+		//path.add(0);
+		//int node = 0;
+		boolean[] visited = new boolean[size];
+		//		for(int i = 0; i < size; i++)
+		//			visited[i] = -1;
+		path = depthFirst(size, path, visited, array);
+		return path;
+
+	}
+	/**
+	 * Depth First Search method to help the pre-order walk method
+	 * @param size
+	 * @param path
+	 * @param visited
+	 * @param array
+	 * @return
+	 */
+	public static ArrayList depthFirst(int size, ArrayList<Integer> path, boolean[] visited, int[][]array){
+		path.add(0);//start on node 0
+		int index = 0;//index for path
+		while(path.size() < size){
+			int node = path.get(index);
+			index++;
+			if(visited[node] == false)
+				visited[node] = true;
+
+			for(int i = 0; i < size; i++){
+				if(array[node][i] > 0 && visited[i] == false){
+					path.add(node);
+					visited[i] = true;
+					node = i;
+				}
+			}
+		}
+		return path;
+	}
+
+	/**
+	 * calculates the approximate traveling salesman problem
+	 * @param userGraph
+	 */
+	public static void ATSP(Graph userGraph){
+		if(!isMetric(userGraph)){//ensures that the graph is metric
+			System.out.println("Error: Graph is not metric.");
+			return;
+		}
+		int[][] mst = MST(userGraph);
+		int size = userGraph.graph.length;
+		int[][] weights = new int[size][size];//weights for the mst
+		for(int row = 1; row <= size; row++){//pulls the weigths out of the mst array and stores them into an adjacency matrix
+			for(int col = 1; col < mst[row].length; col += 2){
+				int node = mst[row][col];
+				weights[row - 1][node] = 2 * mst[row][col + 1];//doubles the edges of the mst
+			}
+		}
+		ArrayList <Integer> path = preorderWalk(weights);
+		System.out.println("\n");
+		while(!path.isEmpty()){
+			System.out.print(path.remove(0) + " ");
+		}
+	}
+}
